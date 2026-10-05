@@ -1,0 +1,92 @@
+{
+  "agent_name": "Customer Support Triage Agent",
+  "description": "Triages user support tickets, queries customer status from DB, and drafts tailored responses.",
+  "version": "1.0.0",
+  "entry_point": "node_input",
+  "required_state_keys": ["user_input"],
+  "metadata": {
+    "author": "BoardMorph",
+    "category": "Customer Support"
+  },
+  "nodes": [
+    {
+      "id": "node_input",
+      "type": "input",
+      "label": "Ticket Description",
+      "description": "Incoming support ticket text",
+      "config": {},
+      "input_keys": [],
+      "output_key": "user_input"
+    },
+    {
+      "id": "node_router",
+      "type": "llm",
+      "label": "Triage Classifier",
+      "description": "Evaluates urgency and assigns to tier 1 or enterprise escalation",
+      "config": {
+        "system_prompt": "You are a customer support triage classifier. Categorize ticket urgency into 'standard' or 'urgent'. Output JSON: {\"route\": \"standard\" | \"urgent\"}",
+        "expected_output_format": "json"
+      },
+      "input_keys": ["user_input"],
+      "output_key": "triage"
+    },
+    {
+      "id": "node_db_lookup",
+      "type": "tool",
+      "label": "Customer DB Lookup",
+      "description": "Fetches customer subscription tier and recent activity",
+      "config": {
+        "tool_name": "database_mock",
+        "parameters_mapping": {
+          "table": "customers",
+          "query": "user_input"
+        }
+      },
+      "input_keys": ["user_input"],
+      "output_key": "customer_data"
+    },
+    {
+      "id": "node_draft_reply",
+      "type": "llm",
+      "label": "Response Drafter",
+      "description": "Generates empathetic, context-aware support response",
+      "config": {
+        "system_prompt": "You are a senior support specialist. Draft an empathetic, helpful response using the customer account history and problem description.",
+        "expected_output_format": "text"
+      },
+      "input_keys": ["user_input", "customer_data"],
+      "output_key": "draft_reply"
+    },
+    {
+      "id": "node_output",
+      "type": "output",
+      "label": "Final Support Reply",
+      "description": "Delivers reply to helpdesk",
+      "config": {},
+      "input_keys": ["draft_reply"],
+      "output_key": "output"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "node_input",
+      "target": "node_router"
+    },
+    {
+      "id": "e2",
+      "source": "node_router",
+      "target": "node_db_lookup"
+    },
+    {
+      "id": "e3",
+      "source": "node_db_lookup",
+      "target": "node_draft_reply"
+    },
+    {
+      "id": "e4",
+      "source": "node_draft_reply",
+      "target": "node_output"
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "agent_name": "Fragile Research Bot (Demo Flaws)",
+  "description": "An intentionally brittle agent designed to demonstrate Break My Agent detection of single points of failure, missing fallbacks, and dead-end nodes.",
+  "version": "1.0.0",
+  "entry_point": "node_input",
+  "required_state_keys": ["user_input"],
+  "metadata": {
+    "author": "BoardMorph",
+    "flaw_count": 3
+  },
+  "nodes": [
+    {
+      "id": "node_input",
+      "type": "input",
+      "label": "User Query",
+      "description": "Receives user input",
+      "config": {},
+      "input_keys": [],
+      "output_key": "user_input"
+    },
+    {
+      "id": "node_external_api",
+      "type": "tool",
+      "label": "Unprotected External API",
+      "description": "Direct call to third-party endpoint with zero retry, zero timeout, and no fallback branch",
+      "config": {
+        "tool_name": "search_tool",
+        "parameters_mapping": {
+          "query": "user_input"
+        }
+      },
+      "input_keys": ["user_input"],
+      "output_key": "api_result"
+    },
+    {
+      "id": "node_synthesizer",
+      "type": "llm",
+      "label": "Answer Generator",
+      "description": "Assumes API result always exists without validation",
+      "config": {
+        "system_prompt": "Synthesize the API output.",
+        "expected_output_format": "text"
+      },
+      "input_keys": ["api_result"],
+      "output_key": "final_text"
+    },
+    {
+      "id": "node_dangling_tool",
+      "type": "tool",
+      "label": "Unreachable Tool Node",
+      "description": "Isolated node with no incoming edges",
+      "config": {
+        "tool_name": "calculator"
+      },
+      "input_keys": [],
+      "output_key": "calc_out"
+    },
+    {
+      "id": "node_output",
+      "type": "output",
+      "label": "Final Output",
+      "description": "Returns answer",
+      "config": {},
+      "input_keys": ["final_text"],
+      "output_key": "output"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "node_input",
+      "target": "node_external_api"
+    },
+    {
+      "id": "e2",
+      "source": "node_external_api",
+      "target": "node_synthesizer"
+    },
+    {
+      "id": "e3",
+      "source": "node_synthesizer",
+      "target": "node_output"
+    }
+  ]
+}

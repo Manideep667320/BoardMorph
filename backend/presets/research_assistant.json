@@ -1,0 +1,140 @@
+{
+  "agent_name": "Autonomous Research Assistant",
+  "description": "Classifies incoming requests, queries live web search or internal databases, and synthesizes a verified briefing using Qwen.",
+  "version": "1.0.0",
+  "entry_point": "node_input",
+  "required_state_keys": ["user_input"],
+  "metadata": {
+    "author": "BoardMorph",
+    "category": "Research"
+  },
+  "nodes": [
+    {
+      "id": "node_input",
+      "type": "input",
+      "label": "User Query",
+      "description": "Entry point receiving user prompts",
+      "config": {},
+      "input_keys": [],
+      "output_key": "user_input"
+    },
+    {
+      "id": "node_classifier",
+      "type": "llm",
+      "label": "Intent Classifier",
+      "description": "Determines whether the inquiry requires web research or internal database retrieval",
+      "config": {
+        "system_prompt": "You are an AI router. Classify the user query into either 'research' (for general web/market research) or 'database' (for customer/account queries). Output JSON: {\"route\": \"research\" | \"database\", \"confidence\": 0.95}",
+        "expected_output_format": "json",
+        "temperature": 0.1
+      },
+      "input_keys": ["user_input"],
+      "output_key": "classification"
+    },
+    {
+      "id": "node_decision",
+      "type": "decision",
+      "label": "Route Gate",
+      "description": "Branches execution based on classifier intent",
+      "config": {
+        "evaluation_key": "route",
+        "routes": {
+          "research": "node_search",
+          "database": "node_database"
+        },
+        "default_route": "node_search"
+      },
+      "input_keys": ["classification"],
+      "output_key": "chosen_path"
+    },
+    {
+      "id": "node_search",
+      "type": "tool",
+      "label": "Web Search Tool",
+      "description": "Queries DuckDuckGo and verified research indices",
+      "config": {
+        "tool_name": "search_tool",
+        "parameters_mapping": {
+          "query": "user_input"
+        }
+      },
+      "input_keys": ["user_input"],
+      "output_key": "search_results"
+    },
+    {
+      "id": "node_database",
+      "type": "tool",
+      "label": "Internal Database",
+      "description": "Queries internal structured customer and telemetry records",
+      "config": {
+        "tool_name": "database_mock",
+        "parameters_mapping": {
+          "query": "user_input"
+        }
+      },
+      "input_keys": ["user_input"],
+      "output_key": "db_results"
+    },
+    {
+      "id": "node_synthesizer",
+      "type": "llm",
+      "label": "Qwen Synthesizer",
+      "description": "Generates a cohesive, cited executive answer from retrieved evidence",
+      "config": {
+        "system_prompt": "You are Qwen Synthesizer. Review the user's initial question and the retrieved factual evidence. Synthesize a clean, authoritative executive summary.",
+        "expected_output_format": "text",
+        "temperature": 0.3
+      },
+      "input_keys": ["user_input", "search_results", "db_results"],
+      "output_key": "synthesis"
+    },
+    {
+      "id": "node_output",
+      "type": "output",
+      "label": "Final Response",
+      "description": "Presents verified response to the user",
+      "config": {},
+      "input_keys": ["synthesis"],
+      "output_key": "output"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_input_classifier",
+      "source": "node_input",
+      "target": "node_classifier"
+    },
+    {
+      "id": "e_classifier_decision",
+      "source": "node_classifier",
+      "target": "node_decision"
+    },
+    {
+      "id": "e_decision_search",
+      "source": "node_decision",
+      "target": "node_search",
+      "condition_value": "research"
+    },
+    {
+      "id": "e_decision_database",
+      "source": "node_decision",
+      "target": "node_database",
+      "condition_value": "database"
+    },
+    {
+      "id": "e_search_synthesizer",
+      "source": "node_search",
+      "target": "node_synthesizer"
+    },
+    {
+      "id": "e_database_synthesizer",
+      "source": "node_database",
+      "target": "node_synthesizer"
+    },
+    {
+      "id": "e_synthesizer_output",
+      "source": "node_synthesizer",
+      "target": "node_output"
+    }
+  ]
+}
